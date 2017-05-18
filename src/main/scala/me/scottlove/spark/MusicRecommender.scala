@@ -1,13 +1,10 @@
+package me.scottlove.spark
 
-import org.apache.spark._
-import scala.collection.Map
-import scala.collection.mutable.ArrayBuffer
-import scala.util.Random
+
 import org.apache.spark.broadcast.Broadcast
 //import org.apache.spark.ml.recommendation.{ALS, ALSModel}
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-import org.apache.spark.sql.functions._
 import org.apache.log4j._
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 
 object MusicRecommender {
@@ -21,11 +18,10 @@ object MusicRecommender {
     //Confiure spark session with needed memory and other
     val spark = SparkSession
       .builder()
-      .appName("MusicRecommender")
+      .appName("me.scottlove.spark.MusicRecommender")
       .master("local[*]")
       .getOrCreate()
     spark.conf.set("spark.driver.memory", "4g")
-    import spark.implicits._
 
     //Import Data Sets
     val rawArtistUserData = spark.read.textFile("data/user_artist_data.txt").repartition(8)
