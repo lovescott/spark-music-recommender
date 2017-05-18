@@ -1,4 +1,5 @@
 
+import org.apache.spark._
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
@@ -11,11 +12,13 @@ import org.apache.log4j._
 
 object MusicRecommender {
 
+
+
   def main(args: Array[String]): Unit ={
 
     Logger.getLogger("org").setLevel(Level.ERROR)
 
-    //confiure spark session with needed memory and other
+    //Confiure spark session with needed memory and other
     val spark = SparkSession
       .builder()
       .appName("MusicRecommender")
@@ -24,15 +27,71 @@ object MusicRecommender {
     spark.conf.set("spark.driver.memory", "4g")
     import spark.implicits._
 
-    val rawArtistData = spark.read.textFile("data/user_artist_data.txt").repartition(8)
+    //Import Data Sets
+    val rawArtistUserData = spark.read.textFile("data/user_artist_data.txt").repartition(8)
+    val rawArtistData = spark.read.textFile("data/artist_data.txt").repartition(8)
+    val rawArtistAlias = spark.read.textFile("data/artist_alias.txt")
 
-    val userArtistDF = rawArtistData.map { line =>
+    val musicRecommender = new MusicRecommender(spark)
+    musicRecommender.model(rawArtistUserData, rawArtistAlias)
+  }
+}
+
+class MusicRecommender(private val spark: SparkSession){
+  import spark.implicits._
+
+  def buildCounts(rawUserArtistData: Dataset[String], bArtistAlias: Broadcast[scala.collection.immutable.Map[Int,Int]]): DataFrame = {
+    rawUserArtistData.map { line =>
+      val Array(userID, artistID, count) = line.split(' ').map(_.toInt)
+      val finalArtistID = bArtistAlias.value.getOrElse(artistID, artistID)
+      (userID, finalArtistID, count)
+    }.toDF("user", "artist", "count")
+  }
+
+  def preparation(rawArtistUserData: Dataset[String], rawArtistData: Dataset[String], rawArtistAlias: Dataset[String]): Unit = {
+
+    rawArtistUserData.take(5).foreach(println)
+
+    var artistAlias = rawArtistAlias.flatMap { line =>
+      val Array(artist, alias) = line.split('\t')
+      if(artist.isEmpty){
+        None
+      } else {
+        Some((artist.toInt, alias.toInt))
+      }
+    }.collect().toMap
+
+    val artistById = rawArtistData.flatMap { line =>
+      val (id, name) = line.span(_ != '\t')
+      if(name.isEmpty){
+        None
+      } else {
+        try {
+          Some((id.toInt, name.trim))
+        } catch {
+          case _: NumberFormatException => None
+        }
+      }
+    }.toDF("id", "name")
+
+    val userArtistDF = rawArtistUserData.map { line =>
       val Array(user, artist, _*) = line.split(' ')
       (user.toInt, artist.toInt)
     }.toDF("user", "artist")
 
-    userArtistDF.agg(min("user"), max("user"), min("artist"), max("artist")).show()
+  }
 
-
+  def model(rawArtistUserData: Dataset[String], rawArtistAlias: Dataset[String]): Unit = {
+    var artistAlias = rawArtistAlias.flatMap { line =>
+      val Array(artist, alias) = line.split('\t')
+      if(artist.isEmpty){
+        None
+      } else {
+        Some((artist.toInt, alias.toInt))
+      }
+    }.collect().toMap
+    val bArtistAlias = spark.sparkContext.broadcast(artistAlias)
+    val trainData = buildCounts(rawArtistUserData, bArtistAlias).cache()
+    trainData.show()
   }
 }
