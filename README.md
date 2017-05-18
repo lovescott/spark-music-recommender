@@ -16,7 +16,9 @@
 
   ```sh
   git clone https://github.com/lovescott/spark-recommender.git
-  sbt compile
+  cd spark-recommender/sb
+  sbt package
+  spark-submit --class MusicRecommender --master local target/scala-2.11/spark-recommender_2.11-1.0.jar
   ```
 
 
