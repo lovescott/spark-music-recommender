@@ -8,7 +8,7 @@
   - [Contributing](#contributing)
 
 ## Installation
-  This ALS example makes use of the AudioScrobbler Data set that can be downloaded [here](http://www-etud.iro.umontreal.ca/~bergstrj/audioscrobbler_data.html)
+  This ALS example makes use of the AudioScrobbler dataset that can be downloaded [here](http://www-etud.iro.umontreal.ca/~bergstrj/audioscrobbler_data.html)
 
   The spark application is setup to run local and assumes that the needed files are in a directory name 'data' in the root of the project.
 
